@@ -1,5 +1,5 @@
 from django.db import models
-from accounts.models import User
+from users.models import User
 from django.utils import timezone
 from django.core.validators import MinLengthValidator
 
