@@ -38,8 +38,8 @@ class Lead(models.Model):
     ]
 
     name = models.CharField(max_length=100, validators=[MinLengthValidator(3)])
-    phone = models.CharField(max_length=15, validators=[MinLengthValidator(10)])
-    email = models.EmailField(blank=True, null=True)
+    phone = models.CharField(max_length=15, validators=[MinLengthValidator(10)],unique=True)
+    email = models.EmailField(blank=True, null=True, unique=True)
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='MEDIUM')
     
     # Changed from CharField with choices to TextField
