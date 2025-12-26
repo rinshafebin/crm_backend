@@ -43,3 +43,75 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(password)  # 🔐 secure hashing
         user.save()
         return user
+
+
+
+
+# ------------------------- Staff List Serializer -------------------------
+class StaffListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'email',
+            'role',
+            'date_joined',
+        ]
+        read_only_fields = fields 
+
+# ------------------------- Staff Detail Serializer -------------------------
+class StaffDetailSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'email',
+            'phone',
+            'role',
+            'team',
+            'date_joined',
+            'last_login',
+            'is_active',
+        ]
+        read_only_fields = ['date_joined', 'last_login']
+
+# ------------------------- Staff Create/Update Serializer -------------------------
+
+class StaffCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            'username',
+            'first_name',
+            'last_name',
+            'email',
+            'phone',
+            'role',
+            'team',
+            'is_active',
+            'password',  
+        ]
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def create(self, validated_data):
+        password = validated_data.pop('password', None)
+        user = User(**validated_data)
+        if password:
+            user.set_password(password)
+        user.save()
+        return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
