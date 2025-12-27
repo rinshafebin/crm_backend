@@ -46,7 +46,6 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 
-
 # ------------------------- Staff List Serializer -------------------------
 class StaffListSerializer(serializers.ModelSerializer):
     class Meta:
@@ -60,7 +59,7 @@ class StaffListSerializer(serializers.ModelSerializer):
             'role',
             'date_joined',
         ]
-        read_only_fields = fields 
+        read_only_fields = fields
 
 # ------------------------- Staff Detail Serializer -------------------------
 class StaffDetailSerializer(serializers.ModelSerializer):
@@ -72,7 +71,6 @@ class StaffDetailSerializer(serializers.ModelSerializer):
             'first_name',
             'last_name',
             'email',
-            'phone',
             'role',
             'team',
             'date_joined',
@@ -82,7 +80,6 @@ class StaffDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ['date_joined', 'last_login']
 
 # ------------------------- Staff Create/Update Serializer -------------------------
-
 class StaffCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -91,11 +88,10 @@ class StaffCreateUpdateSerializer(serializers.ModelSerializer):
             'first_name',
             'last_name',
             'email',
-            'phone',
             'role',
             'team',
             'is_active',
-            'password',  
+            'password',
         ]
         extra_kwargs = {'password': {'write_only': True}}
 
