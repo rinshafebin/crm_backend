@@ -3,28 +3,8 @@ from rest_framework import serializers
 from .models import User
 
 
-# ---------------- LOGIN SERIALIZER ----------------
-class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField(required=True)
-    password = serializers.CharField(write_only=True)
-
-    def validate(self, data):
-        username = data.get("username")
-        password = data.get("password")
-
-        user = authenticate(username=username, password=password)
-
-        if not user:
-            raise serializers.ValidationError("Invalid username or password")
-
-        if not user.is_active:
-            raise serializers.ValidationError("User account is disabled")
-
-        data["user"] = user
-        return data
-
-
 # ---------------- REGISTER SERIALIZER ----------------
+
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=6)
 
@@ -39,10 +19,46 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password")
-        user = User(**validated_data)
-        user.set_password(password)  # 🔐 secure hashing
+
+        user = User(
+            **validated_data,
+            is_active=False
+        )
+        user.set_password(password)
         user.save()
         return user
+    
+    
+
+# ---------------- LOGIN SERIALIZER ----------------
+
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField(required=True)
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        username = data.get("username")
+        password = data.get("password")
+
+        # 1️⃣ Check if user exists first
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            raise serializers.ValidationError("Invalid username or password")
+
+        # 2️⃣ Check admin approval
+        if not user.is_active:
+            raise serializers.ValidationError(
+                "Your account is pending admin approval"
+            )
+
+        # 3️⃣ Authenticate password
+        user = authenticate(username=username, password=password)
+        if not user:
+            raise serializers.ValidationError("Invalid username or password")
+
+        data["user"] = user
+        return data
 
 
 

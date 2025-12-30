@@ -15,7 +15,38 @@ from .serializers import (
 )
 
 
+# ------------------------- Pagination -------------------------
+class StaffPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+
+# ---------------- REGISTER VIEW ----------------
+
+
+class RegisterAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        return Response({
+            "message": "Registration successful. Your account is pending admin approval.",
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "role": user.role,
+                "is_active": user.is_active
+            }
+        }, status=status.HTTP_201_CREATED)
+
+
 # ---------------- LOGIN VIEW ----------------
+
 class LoginAPIView(APIView):
     permission_classes = [AllowAny]
 
@@ -37,34 +68,6 @@ class LoginAPIView(APIView):
             }
         }, status=status.HTTP_200_OK)
 
-
-# ---------------- REGISTER VIEW ----------------
-class RegisterAPIView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request):
-        serializer = RegisterSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.save()
-
-        return Response({
-            "message": "User registered successfully",
-            "user": {
-                "id": user.id,
-                "username": user.username,
-                "role": user.role
-            }
-        }, status=status.HTTP_201_CREATED)
-
-
-
-
-
-# ------------------------- Pagination -------------------------
-class StaffPagination(PageNumberPagination):
-    page_size = 10
-    page_size_query_param = 'page_size'
-    max_page_size = 100
 
 # ------------------------- Staff List View -------------------------
 

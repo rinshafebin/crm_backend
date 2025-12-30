@@ -23,6 +23,8 @@ class User(AbstractUser):
 
     role = models.CharField(max_length=100, choices=ROLE_CHOICES,db_index=True )
     team = models.CharField(max_length=50, blank=True)
+    is_active = models.BooleanField(default=True)
+
 
     # Add these lines to resolve clashes
     groups = models.ManyToManyField(

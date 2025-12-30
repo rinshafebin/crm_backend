@@ -15,7 +15,7 @@ class Lead(models.Model):
         ('INSTAGRAM', 'Instagram'),
         ('WEBSITE', 'Website'),
         ('WALK_IN', 'Walk-in'),
-        ('AUTOMATION', 'automation'),
+        ('AUTOMATION', 'Automation'),
         ('OTHER', 'Other')
     ]
         
@@ -37,33 +37,38 @@ class Lead(models.Model):
         ('REJECTED', 'Rejected')
     ]
 
+    # Basic lead info
     name = models.CharField(max_length=100, validators=[MinLengthValidator(3)])
-    phone = models.CharField(max_length=15, validators=[MinLengthValidator(10)],unique=True)
+    phone = models.CharField(max_length=15, validators=[MinLengthValidator(10)], unique=True)
     email = models.EmailField(blank=True, null=True, unique=True)
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='MEDIUM')
-    
-    # Changed from CharField with choices to TextField
     status = models.TextField(default='ENQUIRY', help_text="Current status of the lead")
-    program = models.CharField(max_length=2000, blank=True, null=True, help_text="Enter the program name")
+    program = models.TextField(blank=True, null=True, help_text="Enter the program name")
     remarks = models.TextField(blank=True, null=True, help_text="Additional notes or comments about the lead")
     location = models.CharField(max_length=100, blank=True, null=True)
     source = models.CharField(max_length=10, choices=SOURCE_CHOICES)
     custom_source = models.CharField(max_length=50, blank=True, null=True)
-    
-    # Processing workflow fields
-    processing_status = models.CharField(max_length=20, choices=PROCESSING_STATUS_CHOICES,default='PENDING')
-    processing_executive = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, limit_choices_to={'role': 'PROCESSING'},related_name='processing_leads')
-    processing_status_date = models.DateTimeField(auto_now_add=True)
+
+    # Processing workflow
+    processing_status = models.CharField(max_length=20, choices=PROCESSING_STATUS_CHOICES, default='PENDING')
+    processing_executive = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        limit_choices_to={'role': 'PROCESSING'}, related_name='processing_leads'
+    )
+    processing_status_date = models.DateTimeField(auto_now_add=True, db_index=True)
     processing_notes = models.TextField(blank=True, null=True)
-    
+
     # Document tracking
     document_status = models.CharField(max_length=20, choices=DOCUMENT_STATUS_CHOICES, default='PENDING')
     documents_received = models.TextField(blank=True, null=True)
-    
+
     # Assignment tracking
-    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL,null=True,blank=True,limit_choices_to={'role__in': [ 'ADM_MANAGER', 'ADM_EXEC' ] },related_name='assigned_leads')
+    assigned_to = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True,
+        limit_choices_to={'role__in': ['ADM_MANAGER', 'ADM_EXEC']}, related_name='assigned_leads'
+    )
     assigned_date = models.DateTimeField(null=True, blank=True)
-    
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -79,6 +84,7 @@ class Lead(models.Model):
             models.Index(fields=['processing_status']),
             models.Index(fields=['assigned_to']),
         ]
+        unique_together = ('phone', 'email')
 
     def __str__(self):
         return f"{self.name} ({self.phone}) - {self.status}" 
@@ -100,13 +106,10 @@ class Lead(models.Model):
         """Helper method to update processing status with proper tracking"""
         self.processing_status = status
         self.processing_status_date = timezone.now()
-        
         if executive and executive.role == 'PROCESSING':
             self.processing_executive = executive
-        
         if notes:
             self.processing_notes = notes
-        
         self.save()
 
     def get_processing_timeline(self):
@@ -133,7 +136,7 @@ class Lead(models.Model):
 
 class ProcessingUpdate(models.Model):
     """Model to track processing status changes"""
-    lead = models.ForeignKey(Lead,on_delete=models.CASCADE, related_name='processing_updates')
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='processing_updates')
     status = models.CharField(max_length=20, choices=Lead.PROCESSING_STATUS_CHOICES)
     changed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     notes = models.TextField(blank=True)
@@ -148,7 +151,7 @@ class ProcessingUpdate(models.Model):
 
 class RemarkHistory(models.Model):
     """History of remarks edits for a lead"""
-    lead = models.ForeignKey(Lead,on_delete=models.CASCADE,related_name='remark_history')
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name='remark_history')
     previous_remarks = models.TextField(blank=True, null=True)
     new_remarks = models.TextField(blank=True, null=True)
     changed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)

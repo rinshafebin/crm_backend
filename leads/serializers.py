@@ -19,7 +19,6 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             'status',
         ]
 
-    # Field-level validations
     def validate_name(self, value):
         value = value.strip()
         if len(value) < 3:
@@ -32,8 +31,6 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Phone number must contain only digits.")
         if len(value) < 10:
             raise serializers.ValidationError("Phone number must be at least 10 digits.")
-        
-        # Prevent duplicate phone
         if Lead.objects.filter(phone=value).exists():
             raise serializers.ValidationError("A lead with this phone number already exists.")
         return value
@@ -45,18 +42,20 @@ class LeadCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("A lead with this email already exists.")
         return value
 
-    # Object-level validation
     def validate(self, attrs):
         source = attrs.get('source')
         custom_source = attrs.get('custom_source')
+        status = attrs.get('status')
 
-        # Require custom_source if source is OTHER
         if source == 'OTHER' and not custom_source:
             raise serializers.ValidationError({"custom_source": "This field is required when source is OTHER."})
 
-        # Restrict invalid initial status
-        if attrs.get('status') in ['REGISTERED', 'COMPLETED']:
+        if status in ['REGISTERED', 'COMPLETED']:
             raise serializers.ValidationError({"status": "Cannot create a lead directly with this status."})
+
+        priority = attrs.get('priority')
+        if priority and priority not in dict(Lead.PRIORITY_CHOICES).keys():
+            raise serializers.ValidationError({"priority": "Invalid priority value."})
 
         return attrs
 
@@ -104,6 +103,16 @@ class LeadDetailSerializer(serializers.ModelSerializer):
                 new_remarks=validated_data.get('remarks'),
                 changed_by=request.user if request else None
             )
+
+        # Validate priority if updating
+        new_priority = validated_data.get('priority')
+        if new_priority and new_priority not in dict(Lead.PRIORITY_CHOICES).keys():
+            raise serializers.ValidationError({"priority": "Invalid priority value."})
+
+        # Validate non-empty status
+        new_status = validated_data.get('status')
+        if new_status is not None and not new_status.strip():
+            raise serializers.ValidationError({"status": "Status cannot be empty."})
 
         return super().update(instance, validated_data)
 

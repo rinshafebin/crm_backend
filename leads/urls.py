@@ -3,18 +3,23 @@ from .views import (
     LeadListView,
     LeadCreateView,
     LeadDetailView,
-    LeadProcessingTimelineView
+    LeadProcessingTimelineView,
+    UpdateLeadPriorityView,
+    UpdateLeadStatusView,
+    UpdateLeadProgramView
 )
 
 urlpatterns = [
+    # Lead CRUD
     path('leads/', LeadListView.as_view(), name='lead-list'),
-
-    # Create a new lead
     path('leads/create/', LeadCreateView.as_view(), name='lead-create'),
-
-    # Retrieve, update, or delete a specific lead
     path('leads/<int:pk>/', LeadDetailView.as_view(), name='lead-detail'),
 
-    # Get the processing timeline for a specific lead
-    path('leads/<int:lead_id>/timeline/', LeadProcessingTimelineView.as_view(), name='lead-processing-timeline'),
+    # Processing timeline
+    path('leads/<int:lead_id>/timeline/', LeadProcessingTimelineView.as_view(), name='lead-timeline'),
+
+    # Individual field updates
+    path('leads/<int:lead_id>/update-priority/', UpdateLeadPriorityView.as_view(), name='update-priority'),
+    path('leads/<int:lead_id>/update-status/', UpdateLeadStatusView.as_view(), name='update-status'),
+    path('leads/<int:lead_id>/update-program/', UpdateLeadProgramView.as_view(), name='update-program'),
 ]
