@@ -6,13 +6,18 @@ from .views import (
     StaffUpdateView,
     StaffDeleteView,
     LoginAPIView, 
-    RegisterAPIView
-)
+    RegisterAPIView,
+    RefreshTokenAPIView,
+    LogoutAPIView
+    )
 
 
 urlpatterns = [
     path('login/', LoginAPIView.as_view(), name='login'),
     path('register/', RegisterAPIView.as_view(), name='register'),
+    path('token/refresh/', RefreshTokenAPIView.as_view(), name='token-refresh'),
+    path('logout/', LogoutAPIView.as_view(), name='logout'),
+    
     path('staffs/', StaffListView.as_view(), name='staff-list'),
     path('staffs/<int:pk>/', StaffDetailView.as_view(), name='staff-detail'),
     path('staffs/create/', StaffCreateView.as_view(), name='staff-create'),

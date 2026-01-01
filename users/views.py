@@ -53,20 +53,67 @@ class LoginAPIView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
         user = serializer.validated_data["user"]
         refresh = RefreshToken.for_user(user)
-
-        return Response({
+        
+        response = Response({
             "message": "Login successful",
             "access": str(refresh.access_token),
-            "refresh": str(refresh),
             "user": {
                 "id": user.id,
                 "username": user.username,
                 "role": user.role
             }
         }, status=status.HTTP_200_OK)
+        
+        response.set_cookie(
+            key="refresh_token",
+            value=str(refresh),
+            httponly=True,
+            secure=False,         
+            samesite="Lax",
+        )
+        
+        return response
+
+
+# -- ---------------- REFRESH TOKEN VIEW ----------------
+
+class RefreshTokenAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        refresh_token = request.COOKIES.get("refresh_token")
+
+        if not refresh_token:
+            return Response(
+                {"detail": "Refresh token not found"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        try:
+            refresh = RefreshToken(refresh_token)
+            access_token = str(refresh.access_token)
+
+            return Response({"access": access_token}, status=status.HTTP_200_OK)
+
+        except Exception:
+            return Response(
+                {"detail": "Invalid refresh token"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+
+# ------------------------- LOGOUT VIEW  -------------------------
+
+class LogoutAPIView(APIView):
+    def post(self, request):
+        response = Response(
+            {"message": "Logged out successfully"},
+            status=status.HTTP_200_OK
+        )
+        response.delete_cookie("refresh_token", path="/api/token/refresh/")
+        return response
 
 
 # ------------------------- Staff List View -------------------------
@@ -77,9 +124,10 @@ class StaffListView(generics.ListAPIView):
     permission_classes = [IsAdminUser]
     pagination_class = StaffPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['username', 'first_name', 'last_name', 'email', 'role']
+    search_fields = ['username', 'first_name', 'last_name', 'email', 'role', 'phone', 'location']
     ordering_fields = ['date_joined', 'username']
     ordering = ['-date_joined']
+
 
 # ------------------------- Staff Detail View -------------------------
 

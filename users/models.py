@@ -24,6 +24,8 @@ class User(AbstractUser):
     role = models.CharField(max_length=100, choices=ROLE_CHOICES,db_index=True )
     team = models.CharField(max_length=50, blank=True)
     is_active = models.BooleanField(default=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    location = models.CharField(max_length=100, blank=True, null=True)
 
 
     # Add these lines to resolve clashes

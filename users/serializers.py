@@ -74,6 +74,8 @@ class StaffListSerializer(serializers.ModelSerializer):
             'email',
             'role',
             'date_joined',
+            'phone',             
+            'location', 
         ]
         read_only_fields = fields
 
@@ -92,6 +94,8 @@ class StaffDetailSerializer(serializers.ModelSerializer):
             'date_joined',
             'last_login',
             'is_active',
+            'phone',              
+            'location', 
         ]
         read_only_fields = ['date_joined', 'last_login']
 
@@ -108,6 +112,8 @@ class StaffCreateUpdateSerializer(serializers.ModelSerializer):
             'team',
             'is_active',
             'password',
+            'phone',              
+            'location', 
         ]
         extra_kwargs = {'password': {'write_only': True}}
 
