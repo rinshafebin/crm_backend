@@ -52,8 +52,8 @@ class LeadCreateView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         lead = serializer.save()
 
-        # Optional: create initial ProcessingUpdate if status is not PENDING
-        if lead.processing_status != 'PENDING':
+        # Create initial processing update if status is not pending
+        if getattr(lead, 'processing_status', None) and lead.processing_status != 'PENDING':
             ProcessingUpdate.objects.create(
                 lead=lead,
                 status=lead.processing_status,
