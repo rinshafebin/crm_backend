@@ -22,10 +22,9 @@ class LeadPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 100
 
-
 # ------------------------- Lead List View -------------------------
+
 class LeadListView(generics.ListAPIView):
-    queryset = Lead.objects.all().distinct()
     serializer_class = LeadListSerializer
     permission_classes = [IsAdminUser]
     pagination_class = LeadPagination
@@ -40,6 +39,28 @@ class LeadListView(generics.ListAPIView):
     ordering_fields = ['created_at', 'priority']
     ordering = ['-created_at']
 
+    def get_queryset(self):
+        return Lead.objects.all().distinct()
+
+    def list(self, request, *args, **kwargs):
+        """Override list to add stats to the response."""
+        queryset = self.filter_queryset(self.get_queryset())
+
+        # Pagination
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+
+        # Calculate stats
+        stats = {
+            "new": queryset.filter(status='ENQUIRY').count(),
+            "qualified": queryset.filter(status='QUALIFIED').count(),
+            "converted": queryset.filter(status='CONVERTED').count(),
+        }
+
+        return self.get_paginated_response({
+            "leads": serializer.data,
+            "stats": stats,
+        })
 
 # ------------------------- Lead Create View -------------------------
 class LeadCreateView(generics.CreateAPIView):

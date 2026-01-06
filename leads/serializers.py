@@ -3,8 +3,6 @@ from .models import Lead, ProcessingUpdate, RemarkHistory
 
 
 # --------------------------- Lead Create Serializer ---------------------------
-from rest_framework import serializers
-from .models import Lead
 
 class LeadCreateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -22,7 +20,6 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             'status',
         ]
 
-    # Name validation: required, min 3 chars
     def validate_name(self, value):
         value = value.strip()
         if not value:
@@ -31,7 +28,6 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Name must be at least 3 characters long.")
         return value
 
-    # Phone validation: required, digits, min 10, unique
     def validate_phone(self, value):
         value = value.strip()
         if not value:
@@ -44,34 +40,25 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("A lead with this phone number already exists.")
         return value
 
-    # # Email validation: optional but unique if provided
-    # def validate_email(self, value):
-    #     if value:
-    #         value = value.strip()
-    #         if Lead.objects.filter(email=value).exists():
-    #             raise serializers.ValidationError("A lead with this email already exists.")
-    #     return value
-
-    # Full validation for custom source, priority, status
     def validate(self, attrs):
-        source = attrs.get('source')
-        custom_source = attrs.get('custom_source')
-        status = attrs.get('status')
-        priority = attrs.get('priority')
+    # Fix indentation
+        for field in ['source', 'status', 'priority']:
+            if attrs.get(field):
+                attrs[field] = attrs[field].upper()
 
-        # Custom source required if source == OTHER
-        if source == 'OTHER' and not custom_source:
-            raise serializers.ValidationError({"custom_source": "This field is required when source is OTHER."})
+        if attrs.get('source') == 'OTHER' and not attrs.get('custom_source'):
+            raise serializers.ValidationError({
+                "custom_source": "This field is required when source is OTHER."
+            })
 
-        # Prevent creating leads directly with some statuses
-        if status in ['REGISTERED', 'COMPLETED']:
-            raise serializers.ValidationError({"status": "Cannot create a lead directly with this status."})
-
-        # Validate priority against model choices
-        if priority and priority not in dict(Lead.PRIORITY_CHOICES).keys():
-            raise serializers.ValidationError({"priority": "Invalid priority value."})
+        if attrs.get('status') in ['REGISTERED', 'COMPLETED']:
+            raise serializers.ValidationError({
+                "status": "Cannot create a lead directly with this status."
+            })
 
         return attrs
+
+
 
 
 
