@@ -10,7 +10,6 @@ from .views import (
 )
 
 urlpatterns = [
-    # Lead CRUD
     path('leads/', LeadListView.as_view(), name='lead-list'),
     path('leads/create/', LeadCreateView.as_view(), name='lead-create'),
     path('leads/<int:pk>/', LeadDetailView.as_view(), name='lead-detail'),

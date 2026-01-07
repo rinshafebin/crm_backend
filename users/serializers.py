@@ -76,6 +76,7 @@ class StaffListSerializer(serializers.ModelSerializer):
             'date_joined',
             'phone',             
             'location', 
+            'is_active',
         ]
         read_only_fields = fields
 

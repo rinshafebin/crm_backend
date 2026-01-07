@@ -40,7 +40,7 @@ class Lead(models.Model):
     # Basic lead info
     name = models.CharField(max_length=100, validators=[MinLengthValidator(3)])
     phone = models.CharField(max_length=15, validators=[MinLengthValidator(10)], unique=True)
-    email = models.EmailField(blank=True, null=True, unique=True)
+    email = models.EmailField(unique=True,null=True,blank=True)
     priority = models.CharField(max_length=10, choices=PRIORITY_CHOICES, default='MEDIUM')
     status = models.TextField(default='ENQUIRY', help_text="Current status of the lead")
     program = models.TextField(blank=True, null=True, help_text="Enter the program name")

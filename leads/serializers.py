@@ -18,6 +18,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             'location',
             'remarks',
             'status',
+            'email'
         ]
 
     def validate_name(self, value):
@@ -63,6 +64,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
 
 
 # --------------------------- Lead List Serializer ---------------------------
+
 class LeadListSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.CharField(source='assigned_to.username', read_only=True)
 
@@ -79,10 +81,12 @@ class LeadListSerializer(serializers.ModelSerializer):
             'processing_status',
             'assigned_to_name',
             'created_at',
+            'email'
         ]
 
 
 # --------------------------- Lead Detail Serializer ---------------------------
+
 class LeadDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lead

@@ -23,7 +23,7 @@ class LeadPagination(PageNumberPagination):
     max_page_size = 100
 
 # ------------------------- Lead List View -------------------------
-
+ 
 class LeadListView(generics.ListAPIView):
     serializer_class = LeadListSerializer
     permission_classes = [IsAdminUser]
@@ -52,10 +52,10 @@ class LeadListView(generics.ListAPIView):
 
         # Calculate stats
         stats = {
-            "new": queryset.filter(status='ENQUIRY').count(),
-            "qualified": queryset.filter(status='QUALIFIED').count(),
-            "converted": queryset.filter(status='CONVERTED').count(),
-        }
+        "new": queryset.filter(status__iexact='ENQUIRY').count(),
+        "qualified": queryset.filter(status__iexact='QUALIFIED').count(),
+        "converted": queryset.filter(status__iexact='CONVERTED').count(),
+}
 
         return self.get_paginated_response({
             "leads": serializer.data,
