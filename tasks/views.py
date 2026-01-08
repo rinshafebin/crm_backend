@@ -4,9 +4,22 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from .models import Task, TaskUpdate
 from .serializers import TaskSerializer, TaskUpdateSerializer
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class EmployeeListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        users = User.objects.all().values(
+            'id','username','role'
+        )
+        return Response(users)
 
 
 # --------------------- Task List / Create ---------------------
+
 class TaskListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -15,7 +28,7 @@ class TaskListCreateAPIView(APIView):
 
         if user.role in ['MEDIA', 'ADM_MANAGER', 'ADM_EXEC']:
             tasks = Task.objects.filter(assigned_to=user)
-        elif user.role in ['ADMIN', 'BUSINESS_HEAD', 'OPS']:
+        elif user.role in ['ADMIN', 'BUSINESS_HEAD', 'OPS', 'GENERAL_MANAGER']:
             tasks = Task.objects.filter(assigned_by=user)
         else:
             tasks = Task.objects.none()
@@ -24,9 +37,10 @@ class TaskListCreateAPIView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        if request.user.role not in ['ADMIN', 'BUSINESS_HEAD', 'OPS']:
+        print(request.data)
+        if request.user.role not in ['ADMIN', 'BUSINESS_HEAD', 'OPS', 'GENERAL_MANAGER', 'ADM_MANAGER']:
             return Response(
-                {"detail": "Only admin/manager can create tasks."},
+                {"detail": "You do not have permission to create tasks."},
                 status=status.HTTP_403_FORBIDDEN
             )
 
@@ -40,6 +54,7 @@ class TaskListCreateAPIView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 # --------------------- Task Detail ---------------------

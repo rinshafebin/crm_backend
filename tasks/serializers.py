@@ -3,17 +3,16 @@ from django.utils import timezone
 from .models import Task, TaskUpdate
 
 # -------------------------- Task Serializer -------------------------
+
 class TaskSerializer(serializers.ModelSerializer):
     assigned_by_name = serializers.CharField(source='assigned_by.username', read_only=True)
     assigned_to_name = serializers.CharField(source='assigned_to.username', read_only=True)
 
-    # Computed fields
+    assigned_by = serializers.PrimaryKeyRelatedField(read_only=True)
+
     overdue_days = serializers.SerializerMethodField()
     days_until_deadline = serializers.SerializerMethodField()
     is_overdue = serializers.SerializerMethodField()
-
-    # Make assigned_by read-only (set in view)
-    assigned_by = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = Task
@@ -26,7 +25,7 @@ class TaskSerializer(serializers.ModelSerializer):
             'overdue_days', 'days_until_deadline', 'is_overdue'
         ]
 
-    # ------------------ Computed field methods ------------------
+    # ---------------- Computed fields ----------------
     def get_overdue_days(self, obj):
         if obj.deadline and obj.status not in ['COMPLETED', 'CANCELLED']:
             delta = timezone.now().date() - obj.deadline
@@ -42,39 +41,30 @@ class TaskSerializer(serializers.ModelSerializer):
     def get_is_overdue(self, obj):
         return obj.status not in ['COMPLETED', 'CANCELLED'] and obj.deadline and obj.deadline < timezone.now().date()
 
-    # ------------------ Field validations ------------------
+    # ---------------- Field validation ----------------
     def validate_deadline(self, value):
         if value <= timezone.now():
             raise serializers.ValidationError("Deadline must be in the future.")
         return value
 
     def validate_assigned_to(self, value):
-        if value.role not in ['MEDIA', 'ADM_MANAGER', 'ADM_EXEC']:
-            raise serializers.ValidationError("Task must be assigned to MEDIA / ADM_MANAGER / ADM_EXEC users.")
-        return value
+        request_user = self.context['request'].user
 
-    # ------------------ Cross-field validation ------------------
+        # Admin/Manager can assign to anyone
+        if request_user.role in ['ADMIN', 'BUSINESS_HEAD', 'OPS', 'GENERAL_MANAGER', 'ADM_MANAGER']:
+            return value
+
+        # Normal staff cannot assign
+        raise serializers.ValidationError("You do not have permission to assign tasks.")
+
+    # ---------------- Cross-field validation ----------------
     def validate(self, attrs):
         request = self.context.get('request')
 
-        # assigned_by ≠ assigned_to
+        # Prevent assigning task to yourself
         if request and 'assigned_to' in attrs:
             if request.user == attrs['assigned_to']:
-                raise serializers.ValidationError("assigned_by and assigned_to cannot be the same user.")
-
-        # Status transition validation
-        if self.instance and 'status' in attrs:
-            current = self.instance.status
-            new = attrs['status']
-
-            invalid = {
-                'PENDING': ['COMPLETED'],
-                'COMPLETED': ['PENDING', 'IN_PROGRESS'],
-                'CANCELLED': ['PENDING', 'IN_PROGRESS'],
-            }
-
-            if new in invalid.get(current, []):
-                raise serializers.ValidationError(f"Cannot change status from {current} to {new}.")
+                raise serializers.ValidationError("You cannot assign a task to yourself.")
 
         return attrs
 

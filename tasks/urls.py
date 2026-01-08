@@ -6,6 +6,7 @@ from .views import (
     TaskDashboardAPIView,
     TasksAssignedByMeAPIView,
     TaskStatusUpdateAPIView,
+    EmployeeListAPIView,
 )
 
 urlpatterns = [
@@ -15,4 +16,8 @@ urlpatterns = [
     path('tasks/dashboard/', TaskDashboardAPIView.as_view(), name='task-dashboard'),
     path('tasks/assigned-by-me/', TasksAssignedByMeAPIView.as_view(), name='tasks-assigned-by-me'),
     path('tasks/<int:pk>/update-status/', TaskStatusUpdateAPIView.as_view(), name='task-status-update'),
+    path('employees/', EmployeeListAPIView.as_view()),
+    
+
 ]
+
