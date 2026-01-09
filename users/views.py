@@ -9,7 +9,8 @@ from .models import User
 from .serializers import (
     StaffListSerializer,
     StaffDetailSerializer,
-    StaffCreateUpdateSerializer,
+    StaffCreateSerializer,
+    StaffUpdateSerializer,
     LoginSerializer,
     RegisterSerializer
 )
@@ -20,6 +21,7 @@ class StaffPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
+
 
 
 
@@ -138,30 +140,34 @@ class StaffDetailView(generics.RetrieveAPIView):
 
 # ------------------------- Staff Create View -------------------------
 
+# views.py
+
 class StaffCreateView(generics.CreateAPIView):
     queryset = User.objects.all()
-    serializer_class = StaffCreateUpdateSerializer
+    serializer_class = StaffCreateSerializer  # Use create serializer
     permission_classes = [IsAdminUser]
-
+    
     def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        staff = serializer.save()
-        return Response({
-            "message": "Staff created successfully",
-            "staff_id": staff.id
-        }, status=status.HTTP_201_CREATED)
+        response = super().create(request, *args, **kwargs)
+        response.data = {"message": "Staff created successfully"}
+        return response
 
-# ------------------------- Staff Update View -------------------------
+
 class StaffUpdateView(generics.UpdateAPIView):
     queryset = User.objects.all()
-    serializer_class = StaffCreateUpdateSerializer
+    serializer_class = StaffUpdateSerializer  # Use update serializer
     permission_classes = [IsAdminUser]
-
+    
     def update(self, request, *args, **kwargs):
-        response = super().update(request, *args, **kwargs)
-        response.data = {"message": "Staff updated successfully"}
-        return response
+        partial = kwargs.pop('partial', True)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        self.perform_update(serializer)
+        return Response({"message": "Staff updated successfully"}, status=status.HTTP_200_OK)
 
 # ------------------------- Staff Delete View -------------------------
 

@@ -1,15 +1,21 @@
 from rest_framework import serializers
 from django.utils import timezone
 from .models import Task, TaskUpdate
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class EmployeeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'role']
+
 
 # -------------------------- Task Serializer -------------------------
-
 class TaskSerializer(serializers.ModelSerializer):
     assigned_by_name = serializers.CharField(source='assigned_by.username', read_only=True)
     assigned_to_name = serializers.CharField(source='assigned_to.username', read_only=True)
-
     assigned_by = serializers.PrimaryKeyRelatedField(read_only=True)
-
     overdue_days = serializers.SerializerMethodField()
     days_until_deadline = serializers.SerializerMethodField()
     is_overdue = serializers.SerializerMethodField()
@@ -29,13 +35,13 @@ class TaskSerializer(serializers.ModelSerializer):
     def get_overdue_days(self, obj):
         if obj.deadline and obj.status not in ['COMPLETED', 'CANCELLED']:
             delta = timezone.now().date() - obj.deadline
-            return delta.days if delta.days > 0 else 0
+            return max(delta.days, 0)
         return 0
 
     def get_days_until_deadline(self, obj):
         if obj.deadline and obj.status not in ['COMPLETED', 'CANCELLED']:
             delta = obj.deadline - timezone.now().date()
-            return delta.days if delta.days > 0 else 0
+            return max(delta.days, 0)
         return 0
 
     def get_is_overdue(self, obj):
@@ -43,29 +49,27 @@ class TaskSerializer(serializers.ModelSerializer):
 
     # ---------------- Field validation ----------------
     def validate_deadline(self, value):
-        if value <= timezone.now():
-            raise serializers.ValidationError("Deadline must be in the future.")
+        if value < timezone.now().date():
+            raise serializers.ValidationError("Deadline cannot be in the past.")
         return value
 
     def validate_assigned_to(self, value):
-        request_user = self.context['request'].user
-
-        # Admin/Manager can assign to anyone
-        if request_user.role in ['ADMIN', 'BUSINESS_HEAD', 'OPS', 'GENERAL_MANAGER', 'ADM_MANAGER']:
-            return value
-
-        # Normal staff cannot assign
-        raise serializers.ValidationError("You do not have permission to assign tasks.")
+        if not value:
+            raise serializers.ValidationError("Assigned user is required.")
+        if value.role not in [
+            'MEDIA', 'ADM_MANAGER', 'ADM_EXEC',
+            'TRAINER', 'BDM', 'FOE_CUM_TC'
+        ]:
+            raise serializers.ValidationError("You cannot assign tasks to this role.")
+        return value
 
     # ---------------- Cross-field validation ----------------
     def validate(self, attrs):
         request = self.context.get('request')
-
+        assigned_to = attrs.get('assigned_to')
         # Prevent assigning task to yourself
-        if request and 'assigned_to' in attrs:
-            if request.user == attrs['assigned_to']:
-                raise serializers.ValidationError("You cannot assign a task to yourself.")
-
+        if request and assigned_to and request.user == assigned_to:
+            raise serializers.ValidationError("You cannot assign a task to yourself.")
         return attrs
 
 
@@ -73,7 +77,7 @@ class TaskSerializer(serializers.ModelSerializer):
 class TaskUpdateSerializer(serializers.ModelSerializer):
     updated_by_name = serializers.CharField(source='updated_by.username', read_only=True)
     updated_by = serializers.PrimaryKeyRelatedField(read_only=True)
-    task = serializers.PrimaryKeyRelatedField(read_only=True)  # Set in view, not from client
+    task = serializers.PrimaryKeyRelatedField(read_only=True)  # Set in view context
 
     class Meta:
         model = TaskUpdate
@@ -84,16 +88,19 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
 
     # ------------------ Validation ------------------
     def validate(self, attrs):
-        task = attrs.get('task')
+        task = self.context.get('task')  # Get task from context
+        if not task:
+            raise serializers.ValidationError("Task context is required for validation.")
+
         new_status = attrs.get('new_status')
         notes = attrs.get('notes', '')
 
         # Ensure status actually changes
-        if task and new_status == task.status:
+        if new_status == task.status:
             raise serializers.ValidationError("New status must be different from the current status.")
 
-        # Optional: require notes for COMPLETED / CANCELLED
-        if new_status in ['COMPLETED', 'CANCELLED'] and not notes:
+        # Require notes for COMPLETED / CANCELLED
+        if new_status in ['COMPLETED', 'CANCELLED'] and not notes.strip():
             raise serializers.ValidationError("Notes are required when completing or cancelling a task.")
 
         return attrs

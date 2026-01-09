@@ -101,7 +101,12 @@ class StaffDetailSerializer(serializers.ModelSerializer):
         read_only_fields = ['date_joined', 'last_login']
 
 # ------------------------- Staff Create/Update Serializer -------------------------
-class StaffCreateUpdateSerializer(serializers.ModelSerializer):
+# serializers.py
+
+# For creating staff (password required)
+class StaffCreateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=True)
+    
     class Meta:
         model = User
         fields = [
@@ -116,21 +121,42 @@ class StaffCreateUpdateSerializer(serializers.ModelSerializer):
             'phone',              
             'location', 
         ]
-        extra_kwargs = {'password': {'write_only': True}}
-
+    
     def create(self, validated_data):
-        password = validated_data.pop('password', None)
+        password = validated_data.pop('password')
         user = User(**validated_data)
-        if password:
-            user.set_password(password)
+        user.set_password(password)
         user.save()
         return user
 
+
+class StaffUpdateSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'username',
+            'first_name',
+            'last_name',
+            'email',
+            'role',
+            'team',
+            'is_active',
+            'password',
+            'phone',              
+            'location', 
+        ]
+    
     def update(self, instance, validated_data):
         password = validated_data.pop('password', None)
+        
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        
+        # Only update password if provided
         if password:
             instance.set_password(password)
+        
         instance.save()
         return instance
