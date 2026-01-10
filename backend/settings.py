@@ -47,7 +47,8 @@ INSTALLED_APPS = [
     'django_filters',
     'tasks',
     'corsheaders',
-    
+    'rest_framework_simplejwt',
+    'reports',    
 ]
 
 MIDDLEWARE = [
