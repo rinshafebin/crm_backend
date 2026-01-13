@@ -1,4 +1,5 @@
 # Create your views here.
+from re import S
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny,IsAdminUser
@@ -16,18 +17,14 @@ from .serializers import (
 )
 
 
-# ------------------------- Pagination -------------------------
+#  Pagination 
 class StaffPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
 
 
-
-
-# ---------------- REGISTER VIEW ----------------
-
-
+# Registration View
 class RegisterAPIView(APIView):
     permission_classes = [AllowAny]
 
@@ -47,8 +44,7 @@ class RegisterAPIView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
-# ---------------- LOGIN VIEW ----------------
-
+# Login View
 class LoginAPIView(APIView):
     permission_classes = [AllowAny]
 
@@ -79,8 +75,7 @@ class LoginAPIView(APIView):
         return response
 
 
-# -- ---------------- REFRESH TOKEN VIEW ----------------
-
+# Token Refresh View
 class RefreshTokenAPIView(APIView):
     permission_classes = [AllowAny]
 
@@ -106,8 +101,7 @@ class RefreshTokenAPIView(APIView):
             )
 
 
-# ------------------------- LOGOUT VIEW  -------------------------
-
+# Logout View
 class LogoutAPIView(APIView):
     def post(self, request):
         response = Response(
@@ -118,8 +112,7 @@ class LogoutAPIView(APIView):
         return response
 
 
-# ------------------------- Staff List View -------------------------
-
+# Staff List View
 class StaffListView(generics.ListAPIView):
     queryset = User.objects.filter(is_active=True)
     serializer_class = StaffListSerializer
@@ -131,20 +124,17 @@ class StaffListView(generics.ListAPIView):
     ordering = ['-date_joined']
 
 
-# ------------------------- Staff Detail View -------------------------
-
+#  Staff Detail View 
 class StaffDetailView(generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = StaffDetailSerializer
     permission_classes = [IsAdminUser]
 
-# ------------------------- Staff Create View -------------------------
 
-# views.py
-
+#  Staff Create View 
 class StaffCreateView(generics.CreateAPIView):
     queryset = User.objects.all()
-    serializer_class = StaffCreateSerializer  # Use create serializer
+    serializer_class = StaffCreateSerializer  
     permission_classes = [IsAdminUser]
     
     def create(self, request, *args, **kwargs):
@@ -153,9 +143,10 @@ class StaffCreateView(generics.CreateAPIView):
         return response
 
 
+#  Staff Update View
 class StaffUpdateView(generics.UpdateAPIView):
     queryset = User.objects.all()
-    serializer_class = StaffUpdateSerializer  # Use update serializer
+    serializer_class = StaffUpdateSerializer  
     permission_classes = [IsAdminUser]
     
     def update(self, request, *args, **kwargs):
@@ -169,8 +160,8 @@ class StaffUpdateView(generics.UpdateAPIView):
         self.perform_update(serializer)
         return Response({"message": "Staff updated successfully"}, status=status.HTTP_200_OK)
 
-# ------------------------- Staff Delete View -------------------------
 
+#  Staff Delete View 
 class StaffDeleteView(generics.DestroyAPIView):
     queryset = User.objects.all()
     serializer_class = StaffDetailSerializer

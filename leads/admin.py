@@ -1,3 +1,6 @@
 from django.contrib import admin
+from .models import Lead,ProcessingUpdate,RemarkHistory
 
-# Register your models here.
+admin.site.register(Lead)
+admin.site.register(ProcessingUpdate)
+admin.site.register(RemarkHistory)

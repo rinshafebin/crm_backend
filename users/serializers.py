@@ -3,8 +3,7 @@ from rest_framework import serializers
 from .models import User
 
 
-# ---------------- REGISTER SERIALIZER ----------------
-
+# Register Serializer
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=6)
 
@@ -30,8 +29,7 @@ class RegisterSerializer(serializers.ModelSerializer):
     
     
 
-# ---------------- LOGIN SERIALIZER ----------------
-
+# Login Serializer
 class LoginSerializer(serializers.Serializer):
     username = serializers.CharField(required=True)
     password = serializers.CharField(write_only=True)
@@ -62,7 +60,7 @@ class LoginSerializer(serializers.Serializer):
 
 
 
-# ------------------------- Staff List Serializer -------------------------
+#  Staff List Serializer 
 class StaffListSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -77,10 +75,11 @@ class StaffListSerializer(serializers.ModelSerializer):
             'phone',             
             'location', 
             'is_active',
+            'team'
         ]
         read_only_fields = fields
 
-# ------------------------- Staff Detail Serializer -------------------------
+#  Staff Detail Serializer 
 class StaffDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -100,10 +99,8 @@ class StaffDetailSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['date_joined', 'last_login']
 
-# ------------------------- Staff Create/Update Serializer -------------------------
-# serializers.py
 
-# For creating staff (password required)
+#  Staff Create/Update Serializer 
 class StaffCreateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
     
@@ -120,6 +117,7 @@ class StaffCreateSerializer(serializers.ModelSerializer):
             'password',
             'phone',              
             'location', 
+            'team'
         ]
     
     def create(self, validated_data):
@@ -130,9 +128,8 @@ class StaffCreateSerializer(serializers.ModelSerializer):
         return user
 
 
+#  Staff Update Serializer
 class StaffUpdateSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
-    
     class Meta:
         model = User
         fields = [
@@ -143,20 +140,6 @@ class StaffUpdateSerializer(serializers.ModelSerializer):
             'role',
             'team',
             'is_active',
-            'password',
-            'phone',              
-            'location', 
+            'phone',
+            'location',
         ]
-    
-    def update(self, instance, validated_data):
-        password = validated_data.pop('password', None)
-        
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        
-        # Only update password if provided
-        if password:
-            instance.set_password(password)
-        
-        instance.save()
-        return instance

@@ -48,7 +48,8 @@ INSTALLED_APPS = [
     'tasks',
     'corsheaders',
     'rest_framework_simplejwt',
-    'reports',    
+    'reports',   
+    'academy', 
 ]
 
 MIDDLEWARE = [

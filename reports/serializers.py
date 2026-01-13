@@ -5,6 +5,7 @@ from .models import DailyReport
 class DailyReportSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source="user.get_full_name", read_only=True)
     file_url = serializers.SerializerMethodField()
+    reviewed_by_name = serializers.CharField(source="reviewed_by.get_full_name", read_only=True)
 
     class Meta:
         model = DailyReport
@@ -19,8 +20,9 @@ class DailyReportSerializer(serializers.ModelSerializer):
             "file_url",
             "report_date",
             "status",
-            "reviewed_by",
             "review_comment",
+            "reviewed_by",
+            "reviewed_by_name",
             "created_at",
             "updated_at",
         ]
@@ -28,6 +30,7 @@ class DailyReportSerializer(serializers.ModelSerializer):
             "user",
             "status",
             "reviewed_by",
+            "review_comment",
             "created_at",
             "updated_at",
         ]
