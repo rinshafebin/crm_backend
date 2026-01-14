@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import DailyReport
 
-
+#  Daily Report Serializer
 class DailyReportSerializer(serializers.ModelSerializer):
     user_name = serializers.CharField(source="user.get_full_name", read_only=True)
     file_url = serializers.SerializerMethodField()

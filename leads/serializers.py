@@ -2,8 +2,7 @@ from rest_framework import serializers
 from .models import Lead, ProcessingUpdate, RemarkHistory
 
 
-# --------------------------- Lead Create Serializer ---------------------------
-
+#  Lead Create Serializer 
 class LeadCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lead
@@ -63,7 +62,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
 
 
 
-# --------------------------- Lead List Serializer ---------------------------
+#  Lead List Serializer 
 
 class LeadListSerializer(serializers.ModelSerializer):
     assigned_to_name = serializers.CharField(source='assigned_to.username', read_only=True)
@@ -85,7 +84,7 @@ class LeadListSerializer(serializers.ModelSerializer):
         ]
 
 
-# --------------------------- Lead Detail Serializer ---------------------------
+#  Lead Detail Serializer 
 
 class LeadDetailSerializer(serializers.ModelSerializer):
     class Meta:
@@ -123,7 +122,7 @@ class LeadDetailSerializer(serializers.ModelSerializer):
         return super().update(instance, validated_data)
 
 
-# --------------------------- Processing Update Serializer ---------------------------
+#  Processing Update Serializer 
 class ProcessingUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProcessingUpdate
@@ -155,7 +154,7 @@ class ProcessingUpdateSerializer(serializers.ModelSerializer):
         return attrs
 
 
-# --------------------------- Remark History Serializer ---------------------------
+#  Remark History Serializer 
 class RemarkHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = RemarkHistory

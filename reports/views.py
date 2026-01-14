@@ -2,11 +2,13 @@ from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.utils.timezone import now
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from .models import DailyReport
 from .serializers import DailyReportSerializer
-from .permissions import IsOwner
+from .permissions import REPORT_REVIEWERS, IsReportReviewer,IsReportOwner
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404
 
 
 # Custom Pagination for Daily Reports
@@ -26,6 +28,7 @@ class DailyReportCreateView(generics.CreateAPIView):
             status="pending"
         )
 
+
 # Daily Report Views
 class MyDailyReportsView(generics.ListAPIView):
     serializer_class = DailyReportSerializer
@@ -41,24 +44,28 @@ class MyDailyReportsView(generics.ListAPIView):
 # Daily Report Views    
 class MyDailyReportUpdateView(generics.UpdateAPIView):
     serializer_class = DailyReportSerializer
-    permission_classes = [IsAuthenticated, IsOwner]
+    permission_classes = [IsAuthenticated, IsReportOwner]
     queryset = DailyReport.objects.all()
 
     def perform_update(self, serializer):
         report = self.get_object()
         if report.status != "pending":
-            raise PermissionError("Approved or rejected reports cannot be edited")
+            raise PermissionDenied(
+                "Approved or rejected reports cannot be edited."
+            )
         serializer.save()
 
 
 # All Daily Reports View for Admins
 class AllDailyReportsView(generics.ListAPIView):
     serializer_class = DailyReportSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsReportReviewer]
     pagination_class = DailyReportPagination
 
     def get_queryset(self):
-        qs = DailyReport.objects.select_related("user", "reviewed_by")
+        qs = DailyReport.objects.select_related(
+            "user", "reviewed_by"
+        )
 
         status = self.request.query_params.get("status")
         user = self.request.query_params.get("user")
@@ -75,34 +82,39 @@ class AllDailyReportsView(generics.ListAPIView):
 
 
 
+
 # Review Daily Report View for Admins
 class ReviewDailyReportView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsReportReviewer]
 
     def patch(self, request, pk):
-        try:
-            report = DailyReport.objects.get(pk=pk)
-        except DailyReport.DoesNotExist:
-            return Response({"error": "Report not found"}, status=404)
+        report = get_object_or_404(DailyReport, pk=pk)
 
         status_value = request.data.get("status")
         comment = request.data.get("review_comment", "")
 
         if status_value not in ["approved", "rejected"]:
-            return Response({"error": "Invalid status"}, status=400)
+            return Response(
+                {"error": "Invalid status"},
+                status=400
+            )
 
         report.status = status_value
         report.review_comment = comment
         report.reviewed_by = request.user
         report.save()
 
-        return Response(DailyReportSerializer(report, context={"request": request}).data)
+        serializer = DailyReportSerializer(
+            report, context={"request": request}
+        )
+        return Response(serializer.data)
+
 
 
 
 # Admin Report Stats View
 class AdminReportStatsView(APIView):
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsReportReviewer]
 
     def get(self, request):
         today = now()
@@ -128,12 +140,19 @@ class DailyReportDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
-        try:
-            report = DailyReport.objects.get(pk=pk)
-        except DailyReport.DoesNotExist:
-            return Response({"error": "Report not found"}, status=404)
-        if not request.user.is_staff and report.user != request.user:
-            return Response({"error": "You do not have permission to view this report"}, status=403)
+        report = get_object_or_404(DailyReport, pk=pk)
 
-        serializer = DailyReportSerializer(report, context={"request": request})
+        if (
+            report.user != request.user and
+            request.user.role not in REPORT_REVIEWERS
+        ):
+            return Response(
+                {"error": "Permission denied"},
+                status=403
+            )
+
+        serializer = DailyReportSerializer(
+            report, context={"request": request}
+        )
         return Response(serializer.data)
+

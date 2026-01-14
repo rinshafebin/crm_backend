@@ -9,6 +9,8 @@ from .serializers import TaskSerializer, TaskUpdateSerializer,EmployeeSerializer
 from django.contrib.auth import get_user_model
 from rest_framework.views import APIView
 from django.utils import timezone
+from .permissions import IsTaskAssigner
+from rest_framework.exceptions import PermissionDenied
 
 User = get_user_model()
 
@@ -22,77 +24,61 @@ class TaskPagination(PageNumberPagination):
 
 #  Employee List 
 class EmployeeListAPIView(generics.ListAPIView):
-    permission_classes = [IsAuthenticated]
-    queryset = User.objects.all()
-    serializer_class = EmployeeSerializer  
+    permission_classes = [IsTaskAssigner]
+    queryset = User.objects.filter(is_active=True)
+    serializer_class = EmployeeSerializer
+
 
 
 
 #  Task List / Create 
+from .permissions import IsTaskAssigner, TASK_ASSIGNERS, TASK_ASSIGNEES
+
 class TaskListCreateAPIView(generics.ListCreateAPIView):
-    permission_classes = [IsAuthenticated]
     serializer_class = TaskSerializer
     pagination_class = TaskPagination
 
+    def get_permissions(self):
+        if self.request.method == "POST":
+            return [IsTaskAssigner()]
+        return [IsAuthenticated()]
+
     def get_queryset(self):
         user = self.request.user
-        qs = Task.objects.select_related('assigned_to', 'assigned_by').all()
-        if user.role in ['MEDIA', 'ADM_MANAGER', 'ADM_EXEC']:
-            return qs.filter(assigned_to=user).order_by('-created_at')
-        elif user.role in ['ADMIN', 'BUSINESS_HEAD', 'OPS', 'GENERAL_MANAGER']:
-            return qs.filter(assigned_by=user).order_by('-created_at')
+        qs = Task.objects.select_related("assigned_to", "assigned_by")
+
+        if user.role in TASK_ASSIGNEES:
+            return qs.filter(assigned_to=user).order_by("-created_at")
+
+        if user.role in TASK_ASSIGNERS:
+            return qs.filter(assigned_by=user).order_by("-created_at")
+
         return Task.objects.none()
 
-    def list(self, request, *args, **kwargs):
-        qs = self.get_queryset()
-        stats = qs.aggregate(
-            total=Count('id'),
-            pending=Count('id', filter=Q(status='PENDING')),
-            in_progress=Count('id', filter=Q(status='IN_PROGRESS')),
-            completed=Count('id', filter=Q(status='COMPLETED')),
-            overdue=Count('id', filter=Q(status='OVERDUE')),
-        )
-
-        page = self.paginate_queryset(qs)
-        serializer = self.get_serializer(page, many=True)
-        response = self.get_paginated_response(serializer.data)
-        response.data['stats'] = stats
-        return response
-
-    def create(self, request, *args, **kwargs):
-        if request.user.role not in ['ADMIN', 'BUSINESS_HEAD', 'OPS', 'GENERAL_MANAGER']:
-            return Response({"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
-
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-        serializer.is_valid(raise_exception=True)
-        serializer.save(assigned_by=request.user)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    def perform_create(self, serializer):
+        serializer.save(assigned_by=self.request.user)
 
 
 #  Task Detail / Update / Delete 
 class TaskDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAuthenticated]
     serializer_class = TaskSerializer
-    lookup_url_kwarg = 'pk'
+
+    def get_permissions(self):
+        if self.request.method in ["PUT", "PATCH", "DELETE"]:
+            return [IsTaskAssigner()]
+        return [IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user
-        qs = Task.objects.select_related('assigned_to', 'assigned_by').all()
-        if user.role in ['MEDIA', 'ADM_MANAGER', 'ADM_EXEC']:
+        qs = Task.objects.select_related("assigned_to", "assigned_by")
+
+        if user.role in TASK_ASSIGNEES:
             return qs.filter(assigned_to=user)
-        elif user.role in ['ADMIN', 'BUSINESS_HEAD', 'OPS', 'GENERAL_MANAGER']:
+
+        if user.role in TASK_ASSIGNERS:
             return qs.filter(assigned_by=user)
+
         return Task.objects.none()
-
-    def update(self, request, *args, **kwargs):
-        if request.user.role not in ['ADMIN', 'BUSINESS_HEAD', 'OPS', 'GENERAL_MANAGER']:
-            return Response({"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
-        return super().update(request, *args, **kwargs)
-
-    def destroy(self, request, *args, **kwargs):
-        if request.user.role not in ['ADMIN', 'BUSINESS_HEAD', 'OPS', 'GENERAL_MANAGER']:
-            return Response({"detail": "Permission denied."}, status=status.HTTP_403_FORBIDDEN)
-        return super().destroy(request, *args, **kwargs)
 
 
 #  Task Updates 
@@ -101,20 +87,15 @@ class TaskUpdateListCreateAPIView(generics.ListCreateAPIView):
     serializer_class = TaskUpdateSerializer
 
     def get_queryset(self):
-        task_id = self.kwargs.get('task_id')
-        return TaskUpdate.objects.filter(task_id=task_id).order_by('-created_at')
-
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        task_id = self.kwargs.get('task_id')
-        task = get_object_or_404(Task, pk=task_id)
-        context['task'] = task
-        return context
+        return TaskUpdate.objects.filter(
+            task_id=self.kwargs["task_id"]
+        ).order_by("-created_at")
 
     def perform_create(self, serializer):
-        task = self.get_serializer_context()['task']
-        if self.request.user != task.assigned_to:
-            raise PermissionError("Only the assigned user can update this task.")
+        task = get_object_or_404(Task, pk=self.kwargs["task_id"])
+
+        if task.assigned_to != self.request.user:
+            raise PermissionDenied("Only assigned employee can update this task.")
 
         serializer.save(
             task=task,
@@ -122,27 +103,29 @@ class TaskUpdateListCreateAPIView(generics.ListCreateAPIView):
             previous_status=task.status
         )
 
-        # Sync task status
-        task.status = serializer.validated_data['new_status']
-        task.save(update_fields=['status', 'updated_at'])
+        task.status = serializer.validated_data["new_status"]
+        task.save(update_fields=["status", "updated_at"])
 
 
-#  Task Dashboard \
-class TaskDashboardAPIView(generics.GenericAPIView):
+
+#  Task Dashboard
+class TaskDashboardAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user = request.user
-        qs = Task.objects.filter(assigned_to=user) if user.role in ['MEDIA', 'ADM_MANAGER', 'ADM_EXEC'] else Task.objects.filter(assigned_by=user)
-
-        data = {
+        qs = (
+            Task.objects.filter(assigned_to=user)
+            if user.role in TASK_ASSIGNEES
+            else Task.objects.filter(assigned_by=user)
+        )
+        return Response({
             "total": qs.count(),
-            "pending": qs.filter(status='PENDING').count(),
-            "in_progress": qs.filter(status='IN_PROGRESS').count(),
-            "completed": qs.filter(status='COMPLETED').count(),
-            "overdue": qs.filter(status='OVERDUE').count(),
-        }
-        return Response(data)
+            "pending": qs.filter(status="PENDING").count(),
+            "in_progress": qs.filter(status="IN_PROGRESS").count(),
+            "completed": qs.filter(status="COMPLETED").count(),
+            "overdue": qs.filter(status="OVERDUE").count(),
+        })
 
 
 #  Tasks Assigned By Me 
@@ -192,20 +175,11 @@ class UpcomingTasksAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        user = request.user
-        today = timezone.now().date()
-
-        # Base queryset: tasks assigned to current user
         qs = Task.objects.filter(
-            assigned_to=user,
+            assigned_to=request.user,
             status__in=["PENDING", "IN_PROGRESS", "OVERDUE"],
-        )
-
-        # Optional: limit upcoming window (today + next 7 days)
-        qs = qs.filter(deadline__gte=today)
-
-        # Order by priority then deadline
-        qs = qs.order_by("-priority", "deadline")[:5]
+            deadline__gte=timezone.now().date()
+        ).order_by("-priority", "deadline")[:5]
 
         serializer = UpcomingTaskSerializer(qs, many=True)
         return Response(serializer.data)

@@ -1,13 +1,32 @@
 from rest_framework.permissions import BasePermission
 
-class CanCreateLead(BasePermission):
-    """
-    Allow only users who are ADMIN, ADM_MANAGER, or ADM_EXEC to create leads
-    """
-    allowed_roles = ['ADMIN', 'ADM_MANAGER', 'ADM_EXEC']
+# Roles allowed to access leads fully
+LEAD_ACCESS_ROLES = [
+    "ADMIN",
+    "OPS",
+    "ADM_MANAGER",
+    "ADM_EXEC",
+    "PROCESSING",
+    "MEDIA",
+    "TRAINER",
+    "BUSINESS_HEAD",
+    "BDM",
+    "CM",
+    "HR",
+    "FOE",
+]
 
+# Roles who can view ALL leads
+LEAD_VIEW_ALL_ROLES = [
+    "ADMIN",
+    "BUSINESS_HEAD",
+    "OPS",
+    "HR",
+]
+
+class CanAccessLeads(BasePermission):
+    """
+    Checks if user role is allowed to access leads
+    """
     def has_permission(self, request, view):
-        return (
-            request.user.is_authenticated and
-            request.user.role in self.allowed_roles
-        )
+        return request.user.is_authenticated and request.user.role in LEAD_ACCESS_ROLES
