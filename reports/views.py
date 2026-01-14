@@ -1,16 +1,24 @@
-from rest_framework import generics, permissions, status
+from rest_framework import generics
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.utils.timezone import now
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from .models import DailyReport
 from .serializers import DailyReportSerializer
 from .permissions import IsOwner
+from rest_framework.pagination import PageNumberPagination
 
 
+# Custom Pagination for Daily Reports
+class DailyReportPagination(PageNumberPagination):
+    page_size = 10              
+    page_size_query_param = "page_size"
+    max_page_size = 50
+
+# Daily Report Views
 class DailyReportCreateView(generics.CreateAPIView):
     serializer_class = DailyReportSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def perform_create(self, serializer):
         serializer.save(
@@ -18,20 +26,22 @@ class DailyReportCreateView(generics.CreateAPIView):
             status="pending"
         )
 
-
+# Daily Report Views
 class MyDailyReportsView(generics.ListAPIView):
     serializer_class = DailyReportSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
+    pagination_class = DailyReportPagination
 
     def get_queryset(self):
         return DailyReport.objects.filter(
             user=self.request.user
         ).order_by("-report_date")
         
-        
+    
+# Daily Report Views    
 class MyDailyReportUpdateView(generics.UpdateAPIView):
     serializer_class = DailyReportSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwner]
+    permission_classes = [IsAuthenticated, IsOwner]
     queryset = DailyReport.objects.all()
 
     def perform_update(self, serializer):
@@ -41,10 +51,11 @@ class MyDailyReportUpdateView(generics.UpdateAPIView):
         serializer.save()
 
 
-
+# All Daily Reports View for Admins
 class AllDailyReportsView(generics.ListAPIView):
     serializer_class = DailyReportSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminUser]
+    pagination_class = DailyReportPagination
 
     def get_queryset(self):
         qs = DailyReport.objects.select_related("user", "reviewed_by")
@@ -64,9 +75,9 @@ class AllDailyReportsView(generics.ListAPIView):
 
 
 
-
+# Review Daily Report View for Admins
 class ReviewDailyReportView(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminUser]
 
     def patch(self, request, pk):
         try:
@@ -89,9 +100,9 @@ class ReviewDailyReportView(APIView):
 
 
 
-
+# Admin Report Stats View
 class AdminReportStatsView(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsAdminUser]
 
     def get(self, request):
         today = now()
@@ -112,7 +123,7 @@ class AdminReportStatsView(APIView):
 
 
 
-
+# Report Detail View
 class DailyReportDetailView(APIView):
     permission_classes = [IsAuthenticated]
 

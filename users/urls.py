@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import (
+    StaffByTeamView,
     StaffListView,
     StaffDetailView,
     StaffCreateView,
@@ -23,5 +24,6 @@ urlpatterns = [
     path('staffs/create/', StaffCreateView.as_view(), name='staff-create'),
     path('staffs/<int:pk>/update/', StaffUpdateView.as_view(), name='staff-update'),
     path('staffs/<int:pk>/delete/', StaffDeleteView.as_view(), name='staff-delete'),
-    
+    path('staff/team/', StaffByTeamView.as_view(), name='staff-by-team'),
+
 ]
