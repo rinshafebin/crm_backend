@@ -1,12 +1,14 @@
 # Create your views here.
-from re import S
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny,IsAdminUser
+from rest_framework.permissions import AllowAny,IsAdminUser, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import generics, filters, status
 from rest_framework.pagination import PageNumberPagination
-from .models import User
+from .permissions import IsManagement, IsSuperAdmin
+from leads.models import Lead
+from academy.models import Student
+from .models import User,ActivityLog
 from .serializers import (
     StaffListSerializer,
     StaffDetailSerializer,
@@ -23,6 +25,43 @@ class StaffPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 100
 
+
+#  Dashboard Stats View
+class DashboardStatsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        data = {
+            "total_leads": Lead.objects.count(),
+            "active_staff": User.objects.filter(is_active=True).count(),
+            "total_students": Student.objects.count(),
+        }
+        return Response(data)
+
+
+# Recent Activities View
+class RecentActivitiesAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = ActivityLog.objects.all()
+
+        # Role-based visibility
+        if request.user.role in ["ADM_EXEC", "TRAINER"]:
+            qs = qs.filter(user=request.user)
+
+        activities = qs[:10]
+
+        data = [
+            {
+                "title": activity.get_activity_type_display(),
+                "description": activity.description,
+                "time": activity.created_at.strftime("%d %b %Y %I:%M %p"),
+            }
+            for activity in activities
+        ]
+
+        return Response(data)
 
 # Registration View
 class RegisterAPIView(APIView):
@@ -116,7 +155,7 @@ class LogoutAPIView(APIView):
 class StaffListView(generics.ListAPIView):
     queryset = User.objects.filter(is_active=True)
     serializer_class = StaffListSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsManagement]
     pagination_class = StaffPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['username', 'first_name', 'last_name', 'email', 'role', 'phone', 'location']
@@ -124,19 +163,21 @@ class StaffListView(generics.ListAPIView):
     ordering = ['-date_joined']
 
 
+
 #  Staff Detail View 
 class StaffDetailView(generics.RetrieveAPIView):
     queryset = User.objects.all()
     serializer_class = StaffDetailSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsManagement]
+
 
 
 #  Staff Create View 
 class StaffCreateView(generics.CreateAPIView):
     queryset = User.objects.all()
-    serializer_class = StaffCreateSerializer  
-    permission_classes = [IsAdminUser]
-    
+    serializer_class = StaffCreateSerializer
+    permission_classes = [IsManagement]
+
     def create(self, request, *args, **kwargs):
         response = super().create(request, *args, **kwargs)
         response.data = {"message": "Staff created successfully"}
@@ -146,36 +187,41 @@ class StaffCreateView(generics.CreateAPIView):
 #  Staff Update View
 class StaffUpdateView(generics.UpdateAPIView):
     queryset = User.objects.all()
-    serializer_class = StaffUpdateSerializer  
-    permission_classes = [IsAdminUser]
-    
+    serializer_class = StaffUpdateSerializer
+    permission_classes = [IsManagement]
+
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', True)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
+
+        serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-        return Response({"message": "Staff updated successfully"}, status=status.HTTP_200_OK)
+
+        return Response(
+            {"message": "Staff updated successfully"},
+            status=status.HTTP_200_OK
+        )
+
 
 
 #  Staff Delete View 
 class StaffDeleteView(generics.DestroyAPIView):
     queryset = User.objects.all()
     serializer_class = StaffDetailSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsSuperAdmin]
 
     def destroy(self, request, *args, **kwargs):
         super().destroy(request, *args, **kwargs)
-        return Response({"message": "Staff deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
-
+        return Response(
+            {"message": "Staff deleted successfully"},
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 
 class StaffByTeamView(generics.ListAPIView):
     serializer_class = StaffListSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsManagement]
     pagination_class = StaffPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['username', 'first_name', 'last_name', 'email', 'role', 'phone', 'location', 'team']
@@ -184,7 +230,7 @@ class StaffByTeamView(generics.ListAPIView):
 
     def get_queryset(self):
         queryset = User.objects.filter(is_active=True)
-        team = self.request.query_params.get('team', None)
+        team = self.request.query_params.get('team')
         if team:
             queryset = queryset.filter(team__iexact=team)
         return queryset

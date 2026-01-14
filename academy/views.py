@@ -1,13 +1,13 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
+from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from django.http import HttpResponse
 import csv
 from .models import Trainer, Student, Attendance
 from .serializers import TrainerSerializer, StudentSerializer, AttendanceSerializer
-
+from rest_framework.permissions import IsAuthenticated
 
 # Custom paginator
 class StandardResultsSetPagination(PageNumberPagination):
@@ -18,13 +18,14 @@ class StandardResultsSetPagination(PageNumberPagination):
 
 
 class TrainerListCreateAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         trainers = Trainer.objects.select_related('user').all()
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(trainers, request)
         serializer = TrainerSerializer(page, many=True)
+        print(serializer.data)
         return paginator.get_paginated_response(serializer.data)
 
     def post(self, request):
@@ -36,7 +37,7 @@ class TrainerListCreateAPIView(APIView):
 
 
 class TrainerDetailAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
         trainer = get_object_or_404(Trainer, pk=pk)
@@ -59,7 +60,7 @@ class TrainerDetailAPIView(APIView):
 
 
 class StudentListCreateAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         students = Student.objects.select_related('trainer', 'trainer__user').all()
@@ -77,7 +78,7 @@ class StudentListCreateAPIView(APIView):
 
 
 class StudentDetailAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
         student = get_object_or_404(Student, pk=pk)
@@ -100,7 +101,7 @@ class StudentDetailAPIView(APIView):
 
 
 class AttendanceListCreateAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         records = Attendance.objects.select_related('student', 'trainer', 'trainer__user').all()
@@ -119,7 +120,7 @@ class AttendanceListCreateAPIView(APIView):
 
 
 class AttendanceDetailAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         student_id = request.GET.get('student')
@@ -142,7 +143,7 @@ class AttendanceDetailAPIView(APIView):
 
 
 class QuickMarkAttendanceAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         data = request.data
@@ -170,7 +171,7 @@ class QuickMarkAttendanceAPIView(APIView):
 
 
 class AttendanceRecordsAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, student_id):
         records = Attendance.objects.filter(student_id=student_id).select_related('trainer')
@@ -181,7 +182,7 @@ class AttendanceRecordsAPIView(APIView):
 
 
 class ExportStudentAttendanceAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request, student_id):
         records = Attendance.objects.filter(student_id=student_id).select_related('trainer')

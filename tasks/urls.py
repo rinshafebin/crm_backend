@@ -7,6 +7,7 @@ from .views import (
     TasksAssignedByMeAPIView,
     TaskStatusUpdateAPIView,
     EmployeeListAPIView,
+    UpcomingTasksAPIView,
 )
 
 urlpatterns = [
@@ -21,4 +22,6 @@ urlpatterns = [
     
     path('tasks/<int:task_id>/updates/', TaskUpdateListCreateAPIView.as_view(), name='task-update-list-create'),
     path('tasks/<int:pk>/update-status/', TaskStatusUpdateAPIView.as_view(), name='task-status-update'),
+    path("upcoming/", UpcomingTasksAPIView.as_view(), name="upcoming-tasks"),
+
 ]

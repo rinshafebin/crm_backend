@@ -2,6 +2,8 @@ from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db import models
 from django.utils import timezone
 from django.db import models
+from django.conf import settings
+ 
 
 class User(AbstractUser):
     ROLE_CHOICES = [
@@ -60,3 +62,25 @@ class User(AbstractUser):
         return self.role == 'HR'
 
 
+class ActivityLog(models.Model):
+    ACTIVITY_TYPES = [
+        ("LEAD_CREATED", "Lead Created"),
+        ("STUDENT_ENROLLED", "Student Enrolled"),
+        ("TASK_COMPLETED", "Task Completed"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    activity_type = models.CharField(max_length=50, choices=ACTIVITY_TYPES)
+    description = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.description

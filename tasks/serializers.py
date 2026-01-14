@@ -105,3 +105,25 @@ class TaskUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Notes are required when completing or cancelling a task.")
 
         return attrs
+
+
+#  Upcoming Task Serializer
+class UpcomingTaskSerializer(serializers.ModelSerializer):
+    priority_label = serializers.CharField(source="get_priority_display", read_only=True)
+    status_label = serializers.CharField(source="get_status_display", read_only=True)
+    days_left = serializers.IntegerField(source="days_until_deadline", read_only=True)
+    is_overdue = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = Task
+        fields = [
+            "id",
+            "title",
+            "priority",
+            "priority_label",
+            "status",
+            "status_label",
+            "deadline",
+            "days_left",
+            "is_overdue",
+        ]

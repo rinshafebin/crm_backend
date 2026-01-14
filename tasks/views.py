@@ -4,22 +4,23 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
-
 from .models import Task, TaskUpdate
-from .serializers import TaskSerializer, TaskUpdateSerializer,EmployeeSerializer
+from .serializers import TaskSerializer, TaskUpdateSerializer,EmployeeSerializer, UpcomingTaskSerializer
 from django.contrib.auth import get_user_model
+from rest_framework.views import APIView
+from django.utils import timezone
 
 User = get_user_model()
 
 
-# ---------------- Pagination ----------------
+#  Pagination 
 class TaskPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 50
 
 
-# ---------------- Employee List ----------------
+#  Employee List 
 class EmployeeListAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     queryset = User.objects.all()
@@ -27,7 +28,7 @@ class EmployeeListAPIView(generics.ListAPIView):
 
 
 
-# ---------------- Task List / Create ----------------
+#  Task List / Create 
 class TaskListCreateAPIView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = TaskSerializer
@@ -68,7 +69,7 @@ class TaskListCreateAPIView(generics.ListCreateAPIView):
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-# ---------------- Task Detail / Update / Delete ----------------
+#  Task Detail / Update / Delete 
 class TaskDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = TaskSerializer
@@ -94,7 +95,7 @@ class TaskDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
         return super().destroy(request, *args, **kwargs)
 
 
-# ---------------- Task Updates ----------------
+#  Task Updates 
 class TaskUpdateListCreateAPIView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = TaskUpdateSerializer
@@ -126,7 +127,7 @@ class TaskUpdateListCreateAPIView(generics.ListCreateAPIView):
         task.save(update_fields=['status', 'updated_at'])
 
 
-# ---------------- Task Dashboard ----------------
+#  Task Dashboard \
 class TaskDashboardAPIView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
 
@@ -144,7 +145,7 @@ class TaskDashboardAPIView(generics.GenericAPIView):
         return Response(data)
 
 
-# ---------------- Tasks Assigned By Me ----------------
+#  Tasks Assigned By Me 
 class TasksAssignedByMeAPIView(generics.ListAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = TaskSerializer
@@ -156,7 +157,7 @@ class TasksAssignedByMeAPIView(generics.ListAPIView):
         return Task.objects.filter(assigned_by=user).select_related('assigned_to', 'assigned_by').order_by('-created_at')
 
 
-# ---------------- Task Status Update ----------------
+#  Task Status Update 
 class TaskStatusUpdateAPIView(generics.GenericAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = TaskUpdateSerializer
@@ -185,3 +186,26 @@ class TaskStatusUpdateAPIView(generics.GenericAPIView):
         task.save(update_fields=['status', 'updated_at'])
 
         return Response({"detail": "Status updated successfully"})
+
+
+class UpcomingTasksAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        today = timezone.now().date()
+
+        # Base queryset: tasks assigned to current user
+        qs = Task.objects.filter(
+            assigned_to=user,
+            status__in=["PENDING", "IN_PROGRESS", "OVERDUE"],
+        )
+
+        # Optional: limit upcoming window (today + next 7 days)
+        qs = qs.filter(deadline__gte=today)
+
+        # Order by priority then deadline
+        qs = qs.order_by("-priority", "deadline")[:5]
+
+        serializer = UpcomingTaskSerializer(qs, many=True)
+        return Response(serializer.data)

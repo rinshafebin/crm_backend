@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import (
+    RecentActivitiesAPIView,
     StaffByTeamView,
     StaffListView,
     StaffDetailView,
@@ -9,7 +10,8 @@ from .views import (
     LoginAPIView, 
     RegisterAPIView,
     RefreshTokenAPIView,
-    LogoutAPIView
+    LogoutAPIView,
+    DashboardStatsAPIView,
     )
 
 
@@ -25,5 +27,7 @@ urlpatterns = [
     path('staffs/<int:pk>/update/', StaffUpdateView.as_view(), name='staff-update'),
     path('staffs/<int:pk>/delete/', StaffDeleteView.as_view(), name='staff-delete'),
     path('staff/team/', StaffByTeamView.as_view(), name='staff-by-team'),
+    path("stats/", DashboardStatsAPIView.as_view(), name="dashboard-stats"),
+    path("activities/", RecentActivitiesAPIView.as_view(), name="dashboard-activities"),
 
 ]
