@@ -1,10 +1,8 @@
 from rest_framework import generics, filters, status
-from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.pagination import PageNumberPagination
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.exceptions import ValidationError
 from django.shortcuts import get_object_or_404
 from leads.permissions import CanAccessLeads,LEAD_VIEW_ALL_ROLES
 from .models import Lead, ProcessingUpdate, RemarkHistory
@@ -12,7 +10,8 @@ from .serializers import (
     LeadListSerializer,
     LeadDetailSerializer,
     LeadCreateSerializer,
-    ProcessingUpdateSerializer
+    ProcessingUpdateSerializer,
+    LeadUpdateSerializer
 )
 
 
@@ -150,59 +149,24 @@ class LeadProcessingTimelineView(generics.ListAPIView):
         return ProcessingUpdate.objects.filter(lead=lead).order_by('-timestamp')
 
 
-#  Individual Field Update Views 
-class UpdateLeadPriorityView(APIView):
+
+class UpdateLeadView(APIView):
     permission_classes = [CanAccessLeads]
 
-    def post(self, request, lead_id):
-        try:
-            lead = Lead.objects.get(id=lead_id)
-            if lead.assigned_to != request.user and request.user.role not in ["ADMIN", "BUSINESS_HEAD", "OPS", "HR"]:
-                return Response({"error": "Permission denied"}, status=403)
+    def patch(self, request, lead_id):
+        lead = get_object_or_404(Lead, id=lead_id)
 
-            new_priority = request.data.get('priority')
-            if new_priority not in dict(Lead.PRIORITY_CHOICES):
-                raise ValidationError("Invalid priority")
-            lead.priority = new_priority
-            lead.save()
-            return Response({'status': 'success'})
-        except Lead.DoesNotExist:
-            return Response({'status': 'error', 'message': 'Lead not found'}, status=404)
+        if lead.assigned_to != request.user and request.user.role not in LEAD_VIEW_ALL_ROLES:
+            return Response({"error": "Permission denied"}, status=403)
 
+        serializer = LeadUpdateSerializer(
+            lead,
+            data=request.data,
+            partial=True,
+            context={'request': request}
+        )
 
-#  Update Lead Status View
-class UpdateLeadStatusView(APIView):
-    permission_classes = [CanAccessLeads]
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
 
-    def post(self, request, lead_id):
-        try:
-            lead = Lead.objects.get(id=lead_id)
-            # Check assigned user OR manager roles
-            if lead.assigned_to != request.user and request.user.role not in LEAD_VIEW_ALL_ROLES:
-                return Response({"error": "Permission denied"}, status=403)
-
-            new_status = request.data.get('status', '').strip()
-            if not new_status:
-                raise ValidationError("Status cannot be empty")
-            lead.status = new_status
-            lead.save()
-            return Response({'status': 'success'})
-        except Lead.DoesNotExist:
-            return Response({'status': 'error', 'message': 'Lead not found'}, status=404)
-
-# Update Lead Program View
-class UpdateLeadProgramView(APIView):
-    permission_classes = [CanAccessLeads]
-
-    def post(self, request, lead_id):
-        try:
-            lead = Lead.objects.get(id=lead_id)
-            if lead.assigned_to != request.user and request.user.role not in LEAD_VIEW_ALL_ROLES:
-                return Response({"error": "Permission denied"}, status=403)
-
-            new_program = request.data.get('program')
-            lead.program = new_program if new_program != '' else None
-            lead.save()
-            return Response({'status': 'success'})
-        except Lead.DoesNotExist:
-            return Response({'status': 'error', 'message': 'Lead not found'}, status=404)
+        return Response(serializer.data, status=200)

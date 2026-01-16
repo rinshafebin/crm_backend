@@ -21,6 +21,36 @@ class TaskPagination(PageNumberPagination):
     page_size_query_param = 'page_size'
     max_page_size = 50
 
+#  Task Stats
+class TaskStatsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        if user.role in TASK_ASSIGNEES:
+            qs = Task.objects.filter(assigned_to=user)
+        elif user.role in TASK_ASSIGNERS:
+            qs = Task.objects.filter(assigned_by=user)
+        else:
+            qs = Task.objects.none()
+
+        stats = qs.aggregate(
+            total=Count('id'),
+            pending=Count('id', filter=Q(status='PENDING')),
+            in_progress=Count('id', filter=Q(status='IN_PROGRESS')),
+            completed=Count('id', filter=Q(status='COMPLETED')),
+            overdue=Count('id', filter=Q(status='OVERDUE')),
+        )
+
+        return Response({
+            "total": stats["total"],
+            "pending": stats["pending"],
+            "in_progress": stats["in_progress"],
+            "completed": stats["completed"],
+            "overdue": stats["overdue"],
+        })
+
 
 #  Employee List 
 class EmployeeListAPIView(generics.ListAPIView):
