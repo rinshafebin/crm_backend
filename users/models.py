@@ -26,6 +26,8 @@ class User(AbstractUser):
     is_active = models.BooleanField(default=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     location = models.CharField(max_length=100, blank=True, null=True)
+    salary = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
+    join_date = models.DateField(blank=True, null=True)
 
 
     # Add these lines to resolve clashes
