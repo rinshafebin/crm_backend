@@ -8,7 +8,7 @@ import csv
 from .models import Trainer, Student, Attendance
 from .serializers import TrainerSerializer, StudentSerializer, AttendanceSerializer
 from rest_framework.permissions import IsAuthenticated
-
+from django.db.models import Count
 # Custom paginator
 class StandardResultsSetPagination(PageNumberPagination):
     page_size = 10
@@ -146,28 +146,36 @@ class QuickMarkAttendanceAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        data = request.data
-        trainer_id = data.get('trainer')
-        date = data.get('date')
-        records = data.get('records', [])
+        if not hasattr(request.user, 'trainer_profile'):
+            return Response(
+                {"error": "Only trainers can mark attendance"},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
-        if not trainer_id or not date or not records:
-            return Response({"error": "trainer, date, and records are required"}, status=status.HTTP_400_BAD_REQUEST)
+        trainer = request.user.trainer_profile
+        date = request.data.get('date')
+        records = request.data.get('records', [])
+
+        if not date or not records:
+            return Response(
+                {"error": "date and records are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         saved_records = []
+
         for r in records:
-            student_id = r.get('student')
-            status_value = r.get('status', 'PRESENT')
-            attendance, created = Attendance.objects.update_or_create(
-                trainer_id=trainer_id,
-                student_id=student_id,
+            attendance, _ = Attendance.objects.update_or_create(
+                trainer=trainer,
+                student_id=r.get('student'),
                 date=date,
-                defaults={'status': status_value}
+                defaults={'status': r.get('status', 'PRESENT')}
             )
             saved_records.append(attendance)
 
         serializer = AttendanceSerializer(saved_records, many=True)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
 
 
 class AttendanceRecordsAPIView(APIView):
@@ -196,3 +204,35 @@ class ExportStudentAttendanceAPIView(APIView):
             writer.writerow([r.date, r.trainer.user.get_full_name(), r.status])
 
         return response
+
+
+
+
+class StudentStatsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        total_students = Student.objects.count()
+
+        status_counts = (
+            Student.objects
+            .values('status')
+            .annotate(count=Count('id'))
+        )
+
+        # Default values
+        stats = {
+            "total": total_students,
+            "ACTIVE": 0,
+            "COMPLETED": 0,
+            "PAUSED": 0,
+            "DROPPED": 0,
+        }
+
+        for item in status_counts:
+            stats[item['status']] = item['count']
+
+        # Combine PAUSED + DROPPED if frontend needs it
+        stats["PAUSED_DROPPED"] = stats["PAUSED"] + stats["DROPPED"]
+
+        return Response(stats)

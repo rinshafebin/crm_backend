@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 
 from pathlib import Path
 
+import cloudinary
 from decouple import config
 from datetime import timedelta
 
@@ -50,6 +51,9 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'reports',   
     'academy', 
+    'cloudinary',
+    'cloudinary_storage',
+    'hr',
 ]
 
 MIDDLEWARE = [
@@ -173,3 +177,17 @@ CSRF_TRUSTED_ORIGINS = [
 
 
 
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': 'your_name',
+    'API_KEY': 'your_key',
+    'API_SECRET': 'your_secret',
+}
+
+cloudinary.config( 
+    cloud_name = config('CLOUDINARY_CLOUD_NAME'),
+    api_key = config('CLOUDINARY_API_KEY'), 
+    api_secret = config('CLOUDINARY_API_SECRET'),  # Keep this secret!
+    secure = True
+)
+
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'

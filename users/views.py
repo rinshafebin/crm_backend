@@ -9,6 +9,7 @@ from .permissions import IsManagement, IsSuperAdmin
 from leads.models import Lead
 from academy.models import Student
 from .models import User,ActivityLog
+from rest_framework.exceptions import PermissionDenied
 from .serializers import (
     StaffListSerializer,
     StaffDetailSerializer,
@@ -31,6 +32,9 @@ class DashboardStatsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        if request.user.role != "ADMIN":
+            raise PermissionDenied("You are not allowed to view dashboard stats")
+
         data = {
             "total_leads": Lead.objects.count(),
             "active_staff": User.objects.filter(is_active=True).count(),
@@ -44,25 +48,27 @@ class RecentActivitiesAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        qs = ActivityLog.objects.all()
+        qs = ActivityLog.objects.all().order_by("-created_at")
 
-        # Role-based visibility
-        if request.user.role in ["ADM_EXEC", "TRAINER"]:
+        if request.user.role != "ADMIN":
             qs = qs.filter(user=request.user)
 
         activities = qs[:10]
 
         data = [
             {
-                "title": activity.get_activity_type_display(),
+                "id": activity.id,
+                "activity_type": activity.get_activity_type_display(),
                 "description": activity.description,
-                "time": activity.created_at.strftime("%d %b %Y %I:%M %p"),
+                "user_name": activity.user.get_full_name() or activity.user.username,
+                "created_at": activity.created_at,
             }
             for activity in activities
         ]
-
+        print(data)
         return Response(data)
-
+    
+    
 # Registration View
 class RegisterAPIView(APIView):
     permission_classes = [AllowAny]

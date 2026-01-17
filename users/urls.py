@@ -29,5 +29,4 @@ urlpatterns = [
     path('staff/team/', StaffByTeamView.as_view(), name='staff-by-team'),
     path("stats/", DashboardStatsAPIView.as_view(), name="dashboard-stats"),
     path("activities/", RecentActivitiesAPIView.as_view(), name="dashboard-activities"),
-
 ]
