@@ -26,7 +26,6 @@ class AttendanceDocument(models.Model):
     def __str__(self):
         return f"{self.name} - {self.month}"
 
-
 # Penalty linked directly to User
 class Penalty(models.Model):
     user = models.ForeignKey(

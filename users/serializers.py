@@ -75,7 +75,7 @@ class StaffListSerializer(serializers.ModelSerializer):
             'phone',             
             'location', 
             'is_active',
-            'team'
+            'team',
             'salary',
             'join_date'
         ]

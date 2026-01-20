@@ -13,6 +13,7 @@ class IsManagement(BasePermission):
         "ADM_MANAGER",
         "CM",
         "BDM",
+        'HR'
     ]
 
     def has_permission(self, request, view):

@@ -10,11 +10,9 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "email", "role", "salary", "join_date", "position"]
 
 class PenaltySerializer(serializers.ModelSerializer):
-    user_name = serializers.CharField(source="user.username", read_only=True)
-
     class Meta:
         model = Penalty
-        fields = ["id", "user", "user_name", "act", "amount", "month", "date"]
+        fields = ['id', 'user', 'act', 'amount', 'month', 'date']
 
 class AttendanceDocumentSerializer(serializers.ModelSerializer):
     class Meta:
