@@ -4,16 +4,15 @@ from .views import (
     LeadCreateView,
     LeadDetailView,
     LeadProcessingTimelineView,
-    UpdateLeadView, 
 )
 
+app_name = 'leads'
+
 urlpatterns = [
+    # List all leads (with filtering, search, pagination)
     path('leads/', LeadListView.as_view(), name='lead-list'),
     path('leads/create/', LeadCreateView.as_view(), name='lead-create'),
+    # Retrieve, update, or delete a specific lead
     path('leads/<int:pk>/', LeadDetailView.as_view(), name='lead-detail'),
-
-    # Processing timeline
     path('leads/<int:lead_id>/timeline/', LeadProcessingTimelineView.as_view(), name='lead-timeline'),
-    path('leads/<int:pk>/update/', UpdateLeadView.as_view(), name='lead-update'),
-    
 ]

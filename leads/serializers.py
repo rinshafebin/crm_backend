@@ -17,7 +17,6 @@ class LeadCreateSerializer(serializers.ModelSerializer):
             'location',
             'remarks',
             'status',
-            'email'
         ]
 
     def validate_name(self, value):
@@ -41,7 +40,7 @@ class LeadCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-    # Fix indentation
+        # Normalize fields to uppercase
         for field in ['source', 'status', 'priority']:
             if attrs.get(field):
                 attrs[field] = attrs[field].upper()
@@ -80,7 +79,9 @@ class LeadListSerializer(serializers.ModelSerializer):
             'processing_status',
             'assigned_to_name',
             'created_at',
-            'email'
+            'email',
+            'location',
+            
         ]
 
 
@@ -97,6 +98,25 @@ class LeadDetailSerializer(serializers.ModelSerializer):
             'registration_date',
         )
 
+    def to_internal_value(self, data):
+        """
+        Normalize priority, status, and source to uppercase before validation
+        """
+        # Create a mutable copy of the data
+        data = data.copy() if hasattr(data, 'copy') else dict(data)
+        
+        # Normalize fields to uppercase
+        if 'priority' in data and data['priority']:
+            data['priority'] = data['priority'].upper()
+        
+        if 'status' in data and data['status']:
+            data['status'] = data['status'].upper()
+        
+        if 'source' in data and data['source']:
+            data['source'] = data['source'].upper()
+        
+        return super().to_internal_value(data)
+
     def update(self, instance, validated_data):
         request = self.context.get('request')
 
@@ -108,11 +128,6 @@ class LeadDetailSerializer(serializers.ModelSerializer):
                 new_remarks=validated_data.get('remarks'),
                 changed_by=request.user if request else None
             )
-
-        # Validate priority if updating
-        new_priority = validated_data.get('priority')
-        if new_priority and new_priority not in dict(Lead.PRIORITY_CHOICES).keys():
-            raise serializers.ValidationError({"priority": "Invalid priority value."})
 
         # Validate non-empty status
         new_status = validated_data.get('status')
@@ -174,43 +189,3 @@ class RemarkHistorySerializer(serializers.ModelSerializer):
         return value
 
 
-
-class LeadUpdateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Lead
-        fields = [
-            'name',
-            'phone',
-            'email',
-            'location',
-            'remarks',
-            'priority',
-            'status',
-            'program',
-            'source',
-            'custom_source'
-        ]
-
-    def validate_priority(self, value):
-        if value not in dict(Lead.PRIORITY_CHOICES):
-            raise serializers.ValidationError("Invalid priority")
-        return value
-
-    def validate_status(self, value):
-        if not value:
-            raise serializers.ValidationError("Status cannot be empty")
-        return value
-
-    def update(self, instance, validated_data):
-        request = self.context['request']
-
-        # Track remark history
-        if 'remarks' in validated_data and instance.remarks != validated_data['remarks']:
-            RemarkHistory.objects.create(
-                lead=instance,
-                previous_remarks=instance.remarks,
-                new_remarks=validated_data['remarks'],
-                changed_by=request.user
-            )
-
-        return super().update(instance, validated_data)

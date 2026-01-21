@@ -168,11 +168,13 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://lifeplannercrm.vercel.app"
 ]
 
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://lifeplannercrm.vercel.app"
 ]
 
 
@@ -186,7 +188,7 @@ CLOUDINARY_STORAGE = {
 cloudinary.config( 
     cloud_name = config('CLOUDINARY_CLOUD_NAME'),
     api_key = config('CLOUDINARY_API_KEY'), 
-    api_secret = config('CLOUDINARY_API_SECRET'),  # Keep this secret!
+    api_secret = config('CLOUDINARY_API_SECRET'),  
     secure = True
 )
 

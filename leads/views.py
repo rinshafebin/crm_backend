@@ -4,24 +4,23 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from leads.permissions import CanAccessLeads,LEAD_VIEW_ALL_ROLES
+from leads.permissions import CanAccessLeads, LEAD_VIEW_ALL_ROLES
 from .models import Lead, ProcessingUpdate, RemarkHistory
 from .serializers import (
     LeadListSerializer,
     LeadDetailSerializer,
     LeadCreateSerializer,
     ProcessingUpdateSerializer,
-    LeadUpdateSerializer
 )
 
-
-#  Pagination 
+# Pagination 
 class LeadPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = 'page_size'
     max_page_size = 100
 
-#  Lead List View 
+
+# Lead List View 
 class LeadListView(generics.ListAPIView):
     serializer_class = LeadListSerializer
     permission_classes = [CanAccessLeads]  
@@ -50,7 +49,10 @@ class LeadListView(generics.ListAPIView):
 
         # Pagination
         page = self.paginate_queryset(queryset)
-        serializer = self.get_serializer(page, many=True)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+        else:
+            serializer = self.get_serializer(queryset, many=True)
 
         # Stats for the user
         stats = {
@@ -65,7 +67,7 @@ class LeadListView(generics.ListAPIView):
         })
 
 
-#  Lead Create View 
+# Lead Create View 
 class LeadCreateView(generics.CreateAPIView):
     queryset = Lead.objects.all()
     serializer_class = LeadCreateSerializer
@@ -76,6 +78,7 @@ class LeadCreateView(generics.CreateAPIView):
         serializer.is_valid(raise_exception=True)
         lead = serializer.save()
 
+        # Track initial processing status if it's not PENDING
         if getattr(lead, 'processing_status', None) and lead.processing_status != 'PENDING':
             ProcessingUpdate.objects.create(
                 lead=lead,
@@ -90,10 +93,8 @@ class LeadCreateView(generics.CreateAPIView):
         }, status=status.HTTP_201_CREATED)
 
 
-
-#  Lead Detail View 
+# Lead Detail View 
 class LeadDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Lead.objects.all()
     serializer_class = LeadDetailSerializer
     permission_classes = [CanAccessLeads]
 
@@ -104,21 +105,20 @@ class LeadDetailView(generics.RetrieveUpdateDestroyAPIView):
         return Lead.objects.filter(assigned_to=user)
 
     def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
         lead = self.get_object()
         old_processing_status = lead.processing_status
-        old_remarks = lead.remarks
 
-        response = super().update(request, *args, **kwargs)
-        updated_lead = self.get_object()
+        serializer = self.get_serializer(
+            lead,
+            data=request.data,
+            partial=partial
+        )
 
-        if old_remarks != updated_lead.remarks:
-            RemarkHistory.objects.create(
-                lead=updated_lead,
-                previous_remarks=old_remarks,
-                new_remarks=updated_lead.remarks,
-                changed_by=request.user
-            )
+        serializer.is_valid(raise_exception=True)
+        updated_lead = serializer.save()
 
+        # Track processing_status change
         if old_processing_status != updated_lead.processing_status:
             ProcessingUpdate.objects.create(
                 lead=updated_lead,
@@ -127,15 +127,23 @@ class LeadDetailView(generics.RetrieveUpdateDestroyAPIView):
                 notes="Status updated via API"
             )
 
-        response.data = {"message": "Lead updated successfully"}
-        return response
+        return Response(
+            {
+                "message": "Lead updated successfully",
+                "lead": LeadDetailSerializer(updated_lead).data
+            },
+            status=status.HTTP_200_OK
+        )
 
     def destroy(self, request, *args, **kwargs):
-        super().destroy(request, *args, **kwargs)
-        return Response({"message": "Lead deleted successfully"}, status=status.HTTP_204_NO_CONTENT)
+        self.perform_destroy(self.get_object())
+        return Response(
+            {"message": "Lead deleted successfully"},
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 
-#  Lead Processing Timeline View 
+# Lead Processing Timeline View 
 class LeadProcessingTimelineView(generics.ListAPIView):
     serializer_class = ProcessingUpdateSerializer
     permission_classes = [CanAccessLeads]
@@ -144,29 +152,9 @@ class LeadProcessingTimelineView(generics.ListAPIView):
         lead_id = self.kwargs.get('lead_id')
         lead = get_object_or_404(Lead, id=lead_id)
         user = self.request.user
+        
+        # Check permissions
         if lead.assigned_to != user and user.role not in LEAD_VIEW_ALL_ROLES:
-            return Lead.objects.none()
+            return ProcessingUpdate.objects.none()
+        
         return ProcessingUpdate.objects.filter(lead=lead).order_by('-timestamp')
-
-
-
-class UpdateLeadView(APIView):
-    permission_classes = [CanAccessLeads]
-
-    def patch(self, request, lead_id):
-        lead = get_object_or_404(Lead, id=lead_id)
-
-        if lead.assigned_to != request.user and request.user.role not in LEAD_VIEW_ALL_ROLES:
-            return Response({"error": "Permission denied"}, status=403)
-
-        serializer = LeadUpdateSerializer(
-            lead,
-            data=request.data,
-            partial=True,
-            context={'request': request}
-        )
-
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-
-        return Response(serializer.data, status=200)
